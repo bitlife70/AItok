@@ -1,9 +1,19 @@
+export interface UploadedFile {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  content?: string;
+}
+
 export interface Message {
   id: string;
   content: string;
   role: 'user' | 'assistant';
   timestamp: Date;
   model?: string;
+  files?: UploadedFile[];
 }
 
 export interface Conversation {
@@ -32,6 +42,55 @@ export interface AgentProcess {
   endTime?: Date;
   details?: string;
   tools?: string[];
+  parentId?: string;
+  children?: string[];
+  decision?: AgentDecision;
+  metadata?: Record<string, any>;
+}
+
+export interface AgentDecision {
+  question: string;
+  options: DecisionOption[];
+  selectedOption?: string;
+  reasoning?: string;
+  confidence?: number;
+}
+
+export interface DecisionOption {
+  id: string;
+  label: string;
+  description?: string;
+  weight?: number;
+  consequences?: string[];
+}
+
+export interface ProcessNode {
+  id: string;
+  type: 'process' | 'decision' | 'tool' | 'input' | 'output';
+  label: string;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  x?: number;
+  y?: number;
+  children?: string[];
+  parent?: string;
+  data?: any;
+}
+
+export interface ProcessFlow {
+  id: string;
+  name: string;
+  nodes: ProcessNode[];
+  edges: FlowEdge[];
+  startTime: Date;
+  endTime?: Date;
+}
+
+export interface FlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  type?: 'normal' | 'decision' | 'error';
 }
 
 export interface MCPServer {

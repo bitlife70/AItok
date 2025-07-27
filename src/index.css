@@ -15,6 +15,12 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dark body {
+  background: #111827;
+  color: #f9fafb;
 }
 
 /* Simple, clean scrollbars */
@@ -32,6 +38,18 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #6b7280;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
 
@@ -78,6 +96,17 @@ body {
   border-color: #d1d5db;
 }
 
+.dark .btn-secondary {
+  background: #374151;
+  color: #d1d5db;
+  border-color: #4b5563;
+}
+
+.dark .btn-secondary:hover {
+  background: #4b5563;
+  border-color: #6b7280;
+}
+
 .btn-ghost {
   background: transparent;
   color: #6b7280;
@@ -92,6 +121,11 @@ body {
   color: #374151;
 }
 
+.dark .btn-ghost:hover {
+  background: #374151;
+  color: #d1d5db;
+}
+
 .btn-icon {
   background: transparent;
   color: #6b7280;
@@ -104,6 +138,11 @@ body {
 .btn-icon:hover {
   background: #f3f4f6;
   color: #374151;
+}
+
+.dark .btn-icon:hover {
+  background: #374151;
+  color: #d1d5db;
 }
 
 /* Input styles */
@@ -125,6 +164,21 @@ body {
 
 .input::placeholder {
   color: #9ca3af;
+}
+
+.dark .input {
+  background: #374151;
+  border-color: #4b5563;
+  color: #f9fafb;
+}
+
+.dark .input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.dark .input::placeholder {
+  color: #6b7280;
 }
 
 /* Message bubbles */
@@ -163,6 +217,11 @@ body {
   border-bottom-left-radius: 4px;
 }
 
+.dark .message-bubble-assistant {
+  background: #374151;
+  color: #f9fafb;
+}
+
 .message-meta {
   font-size: 11px;
   color: #6b7280;
@@ -184,12 +243,21 @@ body {
   height: 100%;
 }
 
+.dark .sidebar {
+  background: #1f2937;
+  border-right-color: #374151;
+}
+
 .main-content {
   flex: 1;
   background: #fafafa;
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.dark .main-content {
+  background: #111827;
 }
 
 .agent-panel {
@@ -199,6 +267,11 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.dark .agent-panel {
+  background: #1f2937;
+  border-left-color: #374151;
 }
 
 /* Header */
@@ -233,10 +306,19 @@ body {
   background: #f3f4f6;
 }
 
+.dark .conversation-item:hover {
+  background: #374151;
+}
+
 .conversation-item.active {
   background: #eff6ff;
   color: #1d4ed8;
   border-left: 3px solid #3b82f6;
+}
+
+.dark .conversation-item.active {
+  background: #1e3a8a;
+  color: #93c5fd;
 }
 
 .conversation-title {

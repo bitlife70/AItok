@@ -34,6 +34,12 @@ class LLMService {
   async sendMessage(request: LLMRequest): Promise<LLMResponse> {
     const provider = this.getProviderFromModel(request.model);
     
+    // Check if provider is actually available with API key
+    if (!this.isProviderAvailable(provider)) {
+      console.warn(`Provider ${provider} not available, falling back to mock response`);
+      return this.sendMockMessage(request);
+    }
+    
     switch (provider) {
       case 'openai':
         return this.sendOpenAIMessage(request);
@@ -48,6 +54,13 @@ class LLMService {
 
   async *streamMessage(request: LLMRequest): AsyncGenerator<LLMStreamChunk> {
     const provider = this.getProviderFromModel(request.model);
+    
+    // Check if provider is actually available with API key
+    if (!this.isProviderAvailable(provider)) {
+      console.warn(`Provider ${provider} not available for streaming, falling back to mock response`);
+      yield* this.streamMockMessage(request);
+      return;
+    }
     
     switch (provider) {
       case 'openai':
@@ -66,8 +79,8 @@ class LLMService {
   }
 
   private getProviderFromModel(model: string): string {
-    if (model.startsWith('gpt-')) return 'openai';
-    if (model.startsWith('claude-')) return 'anthropic';
+    if (model.startsWith('gpt-') || model.includes('gpt')) return 'openai';
+    if (model.startsWith('claude-') || model.includes('claude')) return 'anthropic';
     if (model.startsWith('llama') || model.startsWith('mistral')) return 'local';
     return 'mock';
   }
@@ -223,59 +236,237 @@ class LLMService {
   }
 
   private async *streamOpenAIMessage(request: LLMRequest): AsyncGenerator<LLMStreamChunk> {
-    // Mock streaming for now - implement actual streaming later
-    const response = await this.sendOpenAIMessage({ ...request, stream: false });
-    const words = response.content.split(' ');
-    
-    for (let i = 0; i < words.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const delta = words[i] + (i < words.length - 1 ? ' ' : '');
-      const content = words.slice(0, i + 1).join(' ');
-      
-      yield {
-        id: response.id,
-        content,
-        delta,
-        finished: i === words.length - 1
-      };
+    const provider = this.providers.get('openai');
+    if (!provider) {
+      yield* this.streamMockMessage(request);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${provider.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${provider.apiKey}`
+        },
+        body: JSON.stringify({
+          model: request.model,
+          messages: request.messages,
+          temperature: request.temperature || 0.7,
+          max_tokens: request.maxTokens || 1000,
+          stream: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.statusText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body reader available');
+      }
+
+      const decoder = new TextDecoder();
+      let content = '';
+      let responseId = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              yield {
+                id: responseId,
+                content,
+                delta: '',
+                finished: true
+              };
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.choices && parsed.choices[0]) {
+                const choice = parsed.choices[0];
+                responseId = parsed.id;
+                
+                if (choice.delta && choice.delta.content) {
+                  const delta = choice.delta.content;
+                  content += delta;
+                  
+                  yield {
+                    id: responseId,
+                    content,
+                    delta,
+                    finished: false
+                  };
+                }
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('OpenAI streaming error:', error);
+      yield* this.streamMockMessage(request);
     }
   }
 
   private async *streamAnthropicMessage(request: LLMRequest): AsyncGenerator<LLMStreamChunk> {
-    // Mock streaming for now
-    const response = await this.sendAnthropicMessage({ ...request, stream: false });
-    const words = response.content.split(' ');
-    
-    for (let i = 0; i < words.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const delta = words[i] + (i < words.length - 1 ? ' ' : '');
-      const content = words.slice(0, i + 1).join(' ');
-      
-      yield {
-        id: response.id,
-        content,
-        delta,
-        finished: i === words.length - 1
-      };
+    const provider = this.providers.get('anthropic');
+    if (!provider) {
+      yield* this.streamMockMessage(request);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${provider.baseUrl}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': provider.apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: request.model,
+          messages: request.messages,
+          max_tokens: request.maxTokens || 1000,
+          stream: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Anthropic API error: ${response.statusText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body reader available');
+      }
+
+      const decoder = new TextDecoder();
+      let content = '';
+      let responseId = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            
+            try {
+              const parsed = JSON.parse(data);
+              
+              if (parsed.type === 'message_start') {
+                responseId = parsed.message.id;
+              } else if (parsed.type === 'content_block_delta') {
+                const delta = parsed.delta.text;
+                content += delta;
+                
+                yield {
+                  id: responseId,
+                  content,
+                  delta,
+                  finished: false
+                };
+              } else if (parsed.type === 'message_delta' && parsed.delta.stop_reason) {
+                yield {
+                  id: responseId,
+                  content,
+                  delta: '',
+                  finished: true
+                };
+                return;
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Anthropic streaming error:', error);
+      yield* this.streamMockMessage(request);
     }
   }
 
   private async *streamOllamaMessage(request: LLMRequest): AsyncGenerator<LLMStreamChunk> {
-    // Mock streaming for now
-    const response = await this.sendOllamaMessage({ ...request, stream: false });
-    const words = response.content.split(' ');
+    const provider = this.providers.get('local');
     
-    for (let i = 0; i < words.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const delta = words[i] + (i < words.length - 1 ? ' ' : '');
-      const content = words.slice(0, i + 1).join(' ');
-      
-      yield {
-        id: response.id,
-        content,
-        delta,
-        finished: i === words.length - 1
-      };
+    try {
+      const response = await fetch(`${provider.baseUrl}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: request.model,
+          messages: request.messages,
+          stream: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.statusText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body reader available');
+      }
+
+      const decoder = new TextDecoder();
+      let content = '';
+      const responseId = Date.now().toString();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim());
+
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            
+            if (parsed.message && parsed.message.content) {
+              const delta = parsed.message.content;
+              content += delta;
+              
+              yield {
+                id: responseId,
+                content,
+                delta,
+                finished: parsed.done || false
+              };
+            }
+
+            if (parsed.done) {
+              return;
+            }
+          } catch (e) {
+            // Skip invalid JSON lines
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Ollama streaming error:', error);
+      yield* this.streamMockMessage(request);
     }
   }
 
@@ -299,9 +490,38 @@ class LLMService {
 
   // Add API key for a provider
   setApiKey(provider: string, apiKey: string) {
-    const providerConfig = this.providers.get(provider);
-    if (providerConfig) {
+    let providerConfig = this.providers.get(provider);
+    if (!providerConfig) {
+      // Create provider config if it doesn't exist
+      if (provider === 'openai') {
+        providerConfig = {
+          baseUrl: 'https://api.openai.com/v1'
+        };
+      } else if (provider === 'anthropic') {
+        providerConfig = {
+          baseUrl: 'https://api.anthropic.com/v1'
+        };
+      } else if (provider === 'local') {
+        providerConfig = {
+          baseUrl: 'http://localhost:11434/api'
+        };
+      } else {
+        providerConfig = {};
+      }
+      this.providers.set(provider, providerConfig);
+    }
+    
+    if (provider !== 'local') {
       providerConfig.apiKey = apiKey;
+    }
+    
+    // Also set in window for backward compatibility
+    if (typeof window !== 'undefined') {
+      if (provider === 'openai') {
+        (window as any).OPENAI_API_KEY = apiKey;
+      } else if (provider === 'anthropic') {
+        (window as any).ANTHROPIC_API_KEY = apiKey;
+      }
     }
   }
 
@@ -309,6 +529,88 @@ class LLMService {
   isProviderAvailable(provider: string): boolean {
     const config = this.providers.get(provider);
     return config && (provider === 'local' || config.apiKey);
+  }
+
+  // Get provider status
+  getProviderStatus(provider: string): 'available' | 'no-key' | 'not-configured' {
+    const config = this.providers.get(provider);
+    if (!config) return 'not-configured';
+    if (provider === 'local') return 'available';
+    return config.apiKey ? 'available' : 'no-key';
+  }
+
+  // Test connection to a provider
+  async testConnection(provider: string): Promise<{ success: boolean; message: string }> {
+    try {
+      if (provider === 'local') {
+        const response = await fetch('http://localhost:11434/api/tags');
+        if (response.ok) {
+          const data = await response.json();
+          return {
+            success: true,
+            message: `Connected! Found ${data.models?.length || 0} models`
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Ollama server not responding. Make sure Ollama is running.'
+          };
+        }
+      } else {
+        const config = this.providers.get(provider);
+        if (!config?.apiKey) {
+          return {
+            success: false,
+            message: 'API key not configured'
+          };
+        }
+
+        if (provider === 'openai') {
+          const response = await fetch('https://api.openai.com/v1/models', {
+            headers: {
+              'Authorization': `Bearer ${config.apiKey}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            return {
+              success: true,
+              message: `Connected! Found ${data.data?.length || 0} models`
+            };
+          } else {
+            return {
+              success: false,
+              message: `OpenAI API error: ${response.status} ${response.statusText}`
+            };
+          }
+        } else if (provider === 'anthropic') {
+          // For Anthropic, we'll just validate the API key format since testing requires a request
+          if (config.apiKey.startsWith('sk-ant-')) {
+            return {
+              success: true,
+              message: 'API key format is valid'
+            };
+          } else {
+            return {
+              success: false,
+              message: 'Invalid API key format. Should start with sk-ant-'
+            };
+          }
+        }
+      }
+
+      return {
+        success: false,
+        message: 'Unknown provider'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Connection test failed'
+      };
+    }
   }
 }
 

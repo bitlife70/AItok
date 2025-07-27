@@ -2,9 +2,12 @@ import { create } from 'zustand';
 import { Message, Conversation, LLMModel, AgentProcess, MCPServer, Language } from '../types';
 import { Storage } from '../utils/storage';
 
+export type Theme = 'light' | 'dark' | 'system';
+
 interface AppState {
   // UI State
   currentLanguage: Language;
+  currentTheme: Theme;
   sidebarOpen: boolean;
   agentPanelOpen: boolean;
   
@@ -18,6 +21,9 @@ interface AppState {
   selectedModel: LLMModel | null;
   availableModels: LLMModel[];
   
+  // API State
+  apiKeysConfigured: Record<string, boolean>;
+  
   // Agent State
   agentProcesses: AgentProcess[];
   currentAgentStep: string | null;
@@ -27,6 +33,7 @@ interface AppState {
   
   // Actions
   setLanguage: (language: Language) => void;
+  setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
   toggleAgentPanel: () => void;
   
@@ -41,6 +48,9 @@ interface AppState {
   // Model actions
   setSelectedModel: (model: LLMModel) => void;
   setAvailableModels: (models: LLMModel[]) => void;
+  
+  // API actions
+  setApiKeyConfigured: (provider: string, configured: boolean) => void;
   
   // Agent actions
   addAgentProcess: (process: AgentProcess) => void;
@@ -59,6 +69,7 @@ interface AppState {
 export const useStore = create<AppState>((set, get) => ({
   // Initial State
   currentLanguage: 'en',
+  currentTheme: 'light',
   sidebarOpen: true,
   agentPanelOpen: true,
   
@@ -70,6 +81,8 @@ export const useStore = create<AppState>((set, get) => ({
   selectedModel: null,
   availableModels: [],
   
+  apiKeysConfigured: {},
+  
   agentProcesses: [],
   currentAgentStep: null,
   
@@ -77,6 +90,7 @@ export const useStore = create<AppState>((set, get) => ({
   
   // Actions
   setLanguage: (language) => set({ currentLanguage: language }),
+  setTheme: (theme) => set({ currentTheme: theme }),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   toggleAgentPanel: () => set((state) => ({ agentPanelOpen: !state.agentPanelOpen })),
   
@@ -152,6 +166,11 @@ export const useStore = create<AppState>((set, get) => ({
   // Model actions
   setSelectedModel: (model) => set({ selectedModel: model }),
   setAvailableModels: (models) => set({ availableModels: models }),
+  
+  // API actions
+  setApiKeyConfigured: (provider, configured) => set((state) => ({
+    apiKeysConfigured: { ...state.apiKeysConfigured, [provider]: configured }
+  })),
   
   // Agent actions
   addAgentProcess: (process) => set((state) => ({

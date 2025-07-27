@@ -1,10 +1,13 @@
 import { useEffect } from 'react';
 import { useStore } from './store/useStore';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import AgentPanel from './components/AgentPanel';
 import { LLMModel } from './types';
+import { SecureStorage } from './utils/encryption';
+import { llmService } from './services/llmService';
 
 // Mock data for development
 const mockModels: LLMModel[] = [
@@ -53,13 +56,40 @@ function App() {
     selectedModel,
     loadConversations,
     createNewConversation,
-    conversations
+    conversations,
+    setApiKeyConfigured
   } = useStore();
 
   useEffect(() => {
     // Initialize app data
     setAvailableModels(mockModels);
     loadConversations();
+    
+    // Initialize API key status
+    const initializeApiKeys = async () => {
+      // Check for OpenAI API key
+      const openaiKey = SecureStorage.getItem('api_key_openai');
+      if (openaiKey) {
+        llmService.setApiKey('openai', openaiKey);
+        setApiKeyConfigured('openai', true);
+      } else {
+        setApiKeyConfigured('openai', false);
+      }
+
+      // Check for Anthropic API key
+      const anthropicKey = SecureStorage.getItem('api_key_anthropic');
+      if (anthropicKey) {
+        llmService.setApiKey('anthropic', anthropicKey);
+        setApiKeyConfigured('anthropic', true);
+      } else {
+        setApiKeyConfigured('anthropic', false);
+      }
+
+      // Local provider is always available
+      setApiKeyConfigured('local', true);
+    };
+
+    initializeApiKeys();
     
     if (!selectedModel) {
       setSelectedModel(mockModels[0]);
@@ -71,18 +101,20 @@ function App() {
         createNewConversation();
       }
     }, 100);
-  }, [setAvailableModels, setSelectedModel, selectedModel, loadConversations, createNewConversation, conversations.length]);
+  }, [setAvailableModels, setSelectedModel, selectedModel, loadConversations, createNewConversation, conversations.length, setApiKeyConfigured]);
 
   return (
-    <div className="h-screen flex flex-col bg-white">
-      <Header />
-      
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
-        <ChatInterface />
-        <AgentPanel />
+    <ThemeProvider>
+      <div className="h-screen flex flex-col bg-white dark:bg-gray-900">
+        <Header />
+        
+        <div className="flex-1 flex overflow-hidden">
+          <Sidebar />
+          <ChatInterface />
+          <AgentPanel />
+        </div>
       </div>
-    </div>
+    </ThemeProvider>
   );
 }
 

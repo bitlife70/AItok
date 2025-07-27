@@ -44,5 +44,25 @@
     "tools": "Tools Used",
     "performance": "Performance",
     "decisionTree": "Decision Tree"
+  },
+  "fileUpload": {
+    "selectFiles": "Attach files",
+    "dropFiles": "Drop files here to upload",
+    "fileTooLarge": "File {{fileName}} is too large. Maximum size is {{maxSize}}MB.",
+    "tooManyFiles": "Too many files. Maximum {{maxFiles}} files allowed.",
+    "fileError": "Error processing file {{fileName}}."
+  },
+  "mcp": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "error": "Error",
+    "unknown": "Unknown",
+    "addServer": "Add Server",
+    "serverName": "Server Name",
+    "serverId": "Server ID",
+    "connectionType": "Connection Type",
+    "command": "Command",
+    "arguments": "Arguments",
+    "serverUrl": "Server URL"
   }
 }
