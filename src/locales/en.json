@@ -1,0 +1,48 @@
+{
+  "common": {
+    "send": "Send",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "copy": "Copy",
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry"
+  },
+  "header": {
+    "title": "AI Talk",
+    "modelSelector": "Select Model",
+    "settings": "Settings",
+    "language": "Language"
+  },
+  "sidebar": {
+    "newChat": "New Chat",
+    "conversations": "Conversations",
+    "mcpServers": "MCP Servers",
+    "settings": "Settings"
+  },
+  "chat": {
+    "placeholder": "Type your message here...",
+    "thinking": "AI is thinking...",
+    "typeMessage": "Type a message",
+    "uploadFile": "Upload file",
+    "exportChat": "Export chat"
+  },
+  "models": {
+    "reasoning": "Reasoning",
+    "coding": "Coding", 
+    "creative": "Creative",
+    "general": "General",
+    "cost": "Cost",
+    "speed": "Speed",
+    "capability": "Capability"
+  },
+  "agent": {
+    "title": "Agent Process",
+    "currentStep": "Current Step",
+    "tools": "Tools Used",
+    "performance": "Performance",
+    "decisionTree": "Decision Tree"
+  }
+}

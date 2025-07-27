@@ -1,0 +1,48 @@
+{
+  "common": {
+    "send": "전송",
+    "cancel": "취소",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "편집",
+    "copy": "복사",
+    "loading": "로딩 중...",
+    "error": "오류",
+    "retry": "다시 시도"
+  },
+  "header": {
+    "title": "AI Talk",
+    "modelSelector": "모델 선택",
+    "settings": "설정",
+    "language": "언어"
+  },
+  "sidebar": {
+    "newChat": "새 채팅",
+    "conversations": "대화 목록",
+    "mcpServers": "MCP 서버",
+    "settings": "설정"
+  },
+  "chat": {
+    "placeholder": "여기에 메시지를 입력하세요...",
+    "thinking": "AI가 생각하고 있습니다...",
+    "typeMessage": "메시지 입력",
+    "uploadFile": "파일 업로드",
+    "exportChat": "채팅 내보내기"
+  },
+  "models": {
+    "reasoning": "추론",
+    "coding": "코딩",
+    "creative": "창작",
+    "general": "범용",
+    "cost": "비용",
+    "speed": "속도",
+    "capability": "성능"
+  },
+  "agent": {
+    "title": "에이전트 프로세스",
+    "currentStep": "현재 단계",
+    "tools": "사용된 도구",
+    "performance": "성능",
+    "decisionTree": "의사결정 트리"
+  }
+}
