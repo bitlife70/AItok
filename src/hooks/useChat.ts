@@ -82,7 +82,7 @@ export function useChat() {
       console.log('Selected model:', selectedModel);
       console.log('Model provider:', selectedModel.provider);
       console.log('Provider status:', llmService.getProviderStatus(selectedModel.provider));
-      console.log('Provider available:', llmService.isProviderAvailable(selectedModel.provider));
+      console.log('Provider available:', llmService.isProviderAvailable(selectedModel.provider) ? 'YES' : 'NO');
       
       // Complete input analysis
       updateAgentProcess(processId, {

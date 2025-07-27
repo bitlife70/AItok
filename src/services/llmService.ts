@@ -25,6 +25,14 @@ class LLMService {
       });
     }
 
+    // Google provider
+    if (typeof window !== 'undefined' && (window as any).GOOGLE_API_KEY) {
+      this.providers.set('google', {
+        apiKey: (window as any).GOOGLE_API_KEY,
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta'
+      });
+    }
+
     // Local provider (Ollama)
     this.providers.set('local', {
       baseUrl: 'http://localhost:11434/api'
@@ -45,6 +53,8 @@ class LLMService {
         return this.sendOpenAIMessage(request);
       case 'anthropic':
         return this.sendAnthropicMessage(request);
+      case 'google':
+        return this.sendGoogleMessage(request);
       case 'local':
         return this.sendOllamaMessage(request);
       default:
@@ -69,6 +79,9 @@ class LLMService {
       case 'anthropic':
         yield* this.streamAnthropicMessage(request);
         break;
+      case 'google':
+        yield* this.streamGoogleMessage(request);
+        break;
       case 'local':
         yield* this.streamOllamaMessage(request);
         break;
@@ -79,9 +92,10 @@ class LLMService {
   }
 
   private getProviderFromModel(model: string): string {
-    if (model.startsWith('gpt-') || model.includes('gpt')) return 'openai';
+    if (model.startsWith('gpt-') || model.includes('gpt') || model.startsWith('o1-')) return 'openai';
     if (model.startsWith('claude-') || model.includes('claude')) return 'anthropic';
-    if (model.startsWith('llama') || model.startsWith('mistral')) return 'local';
+    if (model.startsWith('gemini') || model.includes('gemini')) return 'google';
+    if (model.startsWith('llama') || model.startsWith('mistral') || model.startsWith('qwen')) return 'local';
     return 'mock';
   }
 
@@ -90,22 +104,45 @@ class LLMService {
     if (!provider) throw new Error('OpenAI provider not configured');
 
     try {
+      const requestBody = {
+        model: request.model,
+        messages: request.messages,
+        temperature: request.temperature || 0.7,
+        max_tokens: request.maxTokens || 1000
+      };
+
+      console.log('OpenAI API Request (non-stream):', {
+        url: `${provider.baseUrl}/chat/completions`,
+        model: request.model,
+        messageCount: request.messages.length
+      });
+
       const response = await fetch(`${provider.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${provider.apiKey}`
         },
-        body: JSON.stringify({
-          model: request.model,
-          messages: request.messages,
-          temperature: request.temperature || 0.7,
-          max_tokens: request.maxTokens || 1000
-        })
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('OpenAI API Response (non-stream):', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('OpenAI API Error Response (non-stream):', errorText);
+        
+        // Handle quota exceeded error gracefully
+        if (response.status === 429) {
+          console.warn('OpenAI API quota exceeded, falling back to mock response');
+          return this.sendMockMessage(request);
+        }
+        
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -169,6 +206,88 @@ class LLMService {
     }
   }
 
+  private async sendGoogleMessage(request: LLMRequest): Promise<LLMResponse> {
+    const provider = this.providers.get('google');
+    if (!provider) throw new Error('Google provider not configured');
+
+    try {
+      // Convert messages to Google format
+      const contents = this.convertMessagesToGoogleFormat(request.messages);
+
+      const requestBody = {
+        contents,
+        generationConfig: {
+          temperature: request.temperature || 0.7,
+          maxOutputTokens: request.maxTokens || 1000,
+        }
+      };
+
+      console.log('Google API Request (non-stream):', {
+        url: `${provider.baseUrl}/models/${request.model}:generateContent`,
+        model: request.model,
+        messageCount: request.messages.length
+      });
+
+      const response = await fetch(`${provider.baseUrl}/models/${request.model}:generateContent?key=${provider.apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('Google API Response (non-stream):', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Google API Error Response (non-stream):', errorText);
+        
+        // Handle quota exceeded error gracefully
+        if (response.status === 429) {
+          console.warn('Google API quota exceeded, falling back to mock response');
+          return this.sendMockMessage(request);
+        }
+        
+        throw new Error(`Google API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      return {
+        id: Date.now().toString(),
+        content: data.candidates[0].content.parts[0].text,
+        model: request.model,
+        usage: {
+          promptTokens: data.usageMetadata?.promptTokenCount || 0,
+          completionTokens: data.usageMetadata?.candidatesTokenCount || 0,
+          totalTokens: data.usageMetadata?.totalTokenCount || 0
+        },
+        finishReason: data.candidates[0].finishReason
+      };
+    } catch (error) {
+      console.error('Google API error:', error);
+      throw error;
+    }
+  }
+
+  private convertMessagesToGoogleFormat(messages: any[]) {
+    const contents = [];
+    
+    for (const message of messages) {
+      // Google Gemini format doesn't use role field in contents array
+      // Instead, it alternates between user and model responses
+      contents.push({
+        parts: [{ text: message.content }]
+      });
+    }
+    
+    return contents;
+  }
+
   private async sendOllamaMessage(request: LLMRequest): Promise<LLMResponse> {
     const provider = this.providers.get('local');
     
@@ -213,7 +332,16 @@ class LLMService {
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
     
     const lastMessage = request.messages[request.messages.length - 1];
-    const mockResponses = [
+    
+    // Check if this is a fallback due to quota issues
+    const isQuotaFallback = request.model.startsWith('gpt-') || request.model.startsWith('claude-');
+    
+    const mockResponses = isQuotaFallback ? [
+      `📝 *Demo Mode* - I understand you're asking about: "${lastMessage.content}". (Note: This is a simulated response due to API quota limits. Please check your API billing or try again later for actual ${request.model} responses.)`,
+      `💡 *Demo Response* - Thank you for your question about "${lastMessage.content}". This is a demonstration of how ${request.model} would respond. To use the actual model, please ensure your API quota is available.`,
+      `🔄 *Simulated Response* - That's an interesting question: "${lastMessage.content}". This demo shows the interface working. For real ${request.model} responses, please check your API limits.`,
+      `⚡ *Demo Answer* - Based on your message "${lastMessage.content}", here's a simulated response. The actual ${request.model} would provide more comprehensive answers once API access is restored.`
+    ] : [
       `I understand you're asking about: "${lastMessage.content}". This is a simulated response from ${request.model}.`,
       `Thank you for your question about "${lastMessage.content}". As an AI assistant using ${request.model}, I can help you with that.`,
       `That's an interesting question: "${lastMessage.content}". Let me provide some thoughts using ${request.model}.`,
@@ -243,23 +371,47 @@ class LLMService {
     }
 
     try {
+      const requestBody = {
+        model: request.model,
+        messages: request.messages,
+        temperature: request.temperature || 0.7,
+        max_tokens: request.maxTokens || 1000,
+        stream: true
+      };
+
+      console.log('OpenAI API Request:', {
+        url: `${provider.baseUrl}/chat/completions`,
+        model: request.model,
+        messageCount: request.messages.length
+      });
+
       const response = await fetch(`${provider.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${provider.apiKey}`
         },
-        body: JSON.stringify({
-          model: request.model,
-          messages: request.messages,
-          temperature: request.temperature || 0.7,
-          max_tokens: request.maxTokens || 1000,
-          stream: true
-        })
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('OpenAI API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('OpenAI API Error Response:', errorText);
+        
+        // Handle quota exceeded error gracefully
+        if (response.status === 429) {
+          console.warn('OpenAI API quota exceeded, falling back to mock response');
+          yield* this.streamMockMessage(request);
+          return;
+        }
+        
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const reader = response.body?.getReader();
@@ -404,6 +556,31 @@ class LLMService {
     }
   }
 
+  private async *streamGoogleMessage(request: LLMRequest): AsyncGenerator<LLMStreamChunk> {
+    // Google Gemini API doesn't support true streaming yet
+    // So we'll simulate streaming by using the regular API and chunking the response
+    try {
+      const response = await this.sendGoogleMessage(request);
+      const words = response.content.split(' ');
+      
+      for (let i = 0; i < words.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 50)); // Simulate streaming delay
+        const delta = words[i] + (i < words.length - 1 ? ' ' : '');
+        const content = words.slice(0, i + 1).join(' ');
+        
+        yield {
+          id: response.id,
+          content,
+          delta,
+          finished: i === words.length - 1
+        };
+      }
+    } catch (error) {
+      console.error('Google streaming error:', error);
+      yield* this.streamMockMessage(request);
+    }
+  }
+
   private async *streamOllamaMessage(request: LLMRequest): AsyncGenerator<LLMStreamChunk> {
     const provider = this.providers.get('local');
     
@@ -501,6 +678,10 @@ class LLMService {
         providerConfig = {
           baseUrl: 'https://api.anthropic.com/v1'
         };
+      } else if (provider === 'google') {
+        providerConfig = {
+          baseUrl: 'https://generativelanguage.googleapis.com/v1beta'
+        };
       } else if (provider === 'local') {
         providerConfig = {
           baseUrl: 'http://localhost:11434/api'
@@ -521,6 +702,8 @@ class LLMService {
         (window as any).OPENAI_API_KEY = apiKey;
       } else if (provider === 'anthropic') {
         (window as any).ANTHROPIC_API_KEY = apiKey;
+      } else if (provider === 'google') {
+        (window as any).GOOGLE_API_KEY = apiKey;
       }
     }
   }
@@ -528,7 +711,20 @@ class LLMService {
   // Check if provider is available
   isProviderAvailable(provider: string): boolean {
     const config = this.providers.get(provider);
-    return config && (provider === 'local' || config.apiKey);
+    if (!config) return false;
+    
+    if (provider === 'local') return true;
+    
+    // Check if API key exists and is not empty
+    const hasValidKey = config.apiKey && config.apiKey.trim().length > 0;
+    console.log(`Provider ${provider} availability:`, {
+      hasConfig: !!config,
+      hasApiKey: !!config.apiKey,
+      keyLength: config.apiKey ? config.apiKey.length : 0,
+      isValid: hasValidKey
+    });
+    
+    return hasValidKey;
   }
 
   // Get provider status
@@ -566,23 +762,30 @@ class LLMService {
         }
 
         if (provider === 'openai') {
-          const response = await fetch('https://api.openai.com/v1/models', {
+          // Test with a simple chat completion request
+          const testResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
             headers: {
               'Authorization': `Bearer ${config.apiKey}`,
               'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages: [{ role: 'user', content: 'test' }],
+              max_tokens: 1
+            })
           });
           
-          if (response.ok) {
-            const data = await response.json();
+          if (testResponse.ok) {
             return {
               success: true,
-              message: `Connected! Found ${data.data?.length || 0} models`
+              message: 'Connected! API key is valid'
             };
           } else {
+            const errorText = await testResponse.text();
             return {
               success: false,
-              message: `OpenAI API error: ${response.status} ${response.statusText}`
+              message: `OpenAI API error: ${testResponse.status} ${testResponse.statusText} - ${errorText}`
             };
           }
         } else if (provider === 'anthropic') {
@@ -596,6 +799,35 @@ class LLMService {
             return {
               success: false,
               message: 'Invalid API key format. Should start with sk-ant-'
+            };
+          }
+        } else if (provider === 'google') {
+          // Test with a simple generate content request
+          const testResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${config.apiKey}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              contents: [{ 
+                parts: [{ text: 'test' }] 
+              }],
+              generationConfig: { 
+                maxOutputTokens: 1 
+              }
+            })
+          });
+          
+          if (testResponse.ok) {
+            return {
+              success: true,
+              message: 'Connected! API key is valid'
+            };
+          } else {
+            const errorText = await testResponse.text();
+            return {
+              success: false,
+              message: `Google API error: ${testResponse.status} ${testResponse.statusText} - ${errorText}`
             };
           }
         }

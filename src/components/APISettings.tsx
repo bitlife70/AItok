@@ -43,6 +43,14 @@ const API_PROVIDERS: APIProvider[] = [
     testEndpoint: 'https://api.anthropic.com/v1/messages'
   },
   {
+    id: 'google',
+    name: 'Google',
+    description: 'Gemini models',
+    icon: <CloudIcon className="w-5 h-5" />,
+    keyPlaceholder: 'AIza...',
+    testEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models'
+  },
+  {
     id: 'local',
     name: 'Ollama (Local)',
     description: 'Local models via Ollama',
@@ -179,6 +187,21 @@ export default function APISettings() {
               model: 'claude-3-haiku-20240307',
               max_tokens: 1,
               messages: [{ role: 'user', content: 'test' }]
+            })
+          });
+        } else if (providerId === 'google') {
+          testResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              contents: [{ 
+                parts: [{ text: 'test' }] 
+              }],
+              generationConfig: { 
+                maxOutputTokens: 1 
+              }
             })
           });
         }
@@ -362,6 +385,12 @@ export default function APISettings() {
             <strong>Anthropic:</strong> Visit{' '}
             <a href="https://console.anthropic.com/account/keys" target="_blank" rel="noopener noreferrer" className="underline">
               console.anthropic.com/account/keys
+            </a>
+          </div>
+          <div>
+            <strong>Google:</strong> Visit{' '}
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline">
+              aistudio.google.com/app/apikey
             </a>
           </div>
           <div>
