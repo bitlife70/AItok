@@ -7,6 +7,8 @@ export interface LLMRequest {
   temperature?: number;
   maxTokens?: number;
   stream?: boolean;
+  tools?: any[];
+  tool_choice?: string;
 }
 
 export interface LLMResponse {

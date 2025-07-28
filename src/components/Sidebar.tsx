@@ -5,7 +5,8 @@ import {
   XMarkIcon,
   ChatBubbleOvalLeftEllipsisIcon,
   ServerIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import { useStore } from '../store/useStore';
 import MCPServerPanel from './MCPServerPanel';
@@ -20,7 +21,8 @@ export default function Sidebar() {
     conversations, 
     currentConversation,
     setCurrentConversation,
-    createNewConversation
+    createNewConversation,
+    deleteConversation
   } = useStore();
 
   if (!sidebarOpen) return null;
@@ -35,7 +37,7 @@ export default function Sidebar() {
             onClick={toggleSidebar}
             className="btn-ghost text-gray-600 dark:text-gray-300"
           >
-            <XMarkIcon className="w-3 h-3" />
+            <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
         
@@ -49,8 +51,8 @@ export default function Sidebar() {
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            <ChatBubbleOvalLeftEllipsisIcon className="w-3 h-3" />
-            Chats
+            <ChatBubbleOvalLeftEllipsisIcon className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">Chats</span>
           </button>
           <button
             onClick={() => setActiveTab('mcp')}
@@ -60,8 +62,8 @@ export default function Sidebar() {
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            <ServerIcon className="w-3 h-3" />
-            MCP
+            <ServerIcon className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">MCP</span>
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -71,18 +73,18 @@ export default function Sidebar() {
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            <Cog6ToothIcon className="w-3 h-3" />
-            Settings
+            <Cog6ToothIcon className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">Settings</span>
           </button>
         </div>
 
         {activeTab === 'conversations' && (
           <button 
             onClick={createNewConversation}
-            className="btn-primary w-full"
+            className="btn-primary w-full flex items-center justify-center gap-2"
           >
-            <PlusIcon className="w-3 h-3" />
-            <span className="text-xs">{t('sidebar.newChat')}</span>
+            <PlusIcon className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm font-medium">{t('sidebar.newChat')}</span>
           </button>
         )}
       </div>
@@ -93,25 +95,41 @@ export default function Sidebar() {
           <>
             {conversations.length === 0 ? (
               <div className="p-4 text-center">
-                <ChatBubbleOvalLeftEllipsisIcon className="w-5 h-5 mx-auto text-gray-300 mb-2" />
-                <p className="text-xs text-gray-500">No conversations yet</p>
+                <ChatBubbleOvalLeftEllipsisIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">No conversations yet</p>
               </div>
             ) : (
               <div className="p-2">
                 {conversations.map((conversation) => (
                   <div
                     key={conversation.id}
-                    className={`conversation-item ${
+                    className={`conversation-item group ${
                       currentConversation?.id === conversation.id ? 'active' : ''
                     }`}
-                    onClick={() => setCurrentConversation(conversation)}
                   >
-                    <div className="conversation-title">
-                      {conversation.title}
+                    <div 
+                      className="flex-1 cursor-pointer"
+                      onClick={() => setCurrentConversation(conversation)}
+                    >
+                      <div className="conversation-title">
+                        {conversation.title}
+                      </div>
+                      <div className="conversation-meta">
+                        {conversation.messages.length} messages • {new Date(conversation.updatedAt).toLocaleDateString()}
+                      </div>
                     </div>
-                    <div className="conversation-meta">
-                      {conversation.messages.length} messages • {new Date(conversation.updatedAt).toLocaleDateString()}
-                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm('Are you sure you want to delete this conversation?')) {
+                          deleteConversation(conversation.id);
+                        }
+                      }}
+                      className="btn-ghost p-1 w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ml-2 flex-shrink-0"
+                      title="Delete conversation"
+                    >
+                      <TrashIcon className="w-4 h-4 text-red-500 hover:text-red-700 flex-shrink-0" />
+                    </button>
                   </div>
                 ))}
               </div>

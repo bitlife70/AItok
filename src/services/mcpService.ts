@@ -1,4 +1,7 @@
 import { MCPServer } from '../types';
+import { MCPClient } from './mcpClient';
+import { MCPStdioClient } from './mcpStdioClient';
+import { MCPHttpClient } from './mcpHttpClient';
 
 export interface MCPCapability {
   name: string;
@@ -199,20 +202,37 @@ class MCPServerConnection {
   private status: 'connected' | 'disconnected' | 'error' = 'disconnected';
   private capabilities: string[] = [];
   private lastError?: string;
+  private client: MCPClient | null = null;
 
   constructor(config: MCPServerConfig) {
     this.config = config;
+    this.createClient();
+  }
+
+  private createClient(): void {
+    if (this.config.type === 'stdio') {
+      this.client = new MCPStdioClient(this.config);
+    } else if (this.config.type === 'http') {
+      this.client = new MCPHttpClient(this.config);
+    } else {
+      throw new Error(`Unsupported MCP server type: ${this.config.type}`);
+    }
   }
 
   async connect(): Promise<void> {
+    if (!this.client) {
+      throw new Error('MCP client not initialized');
+    }
+
     try {
-      if (this.config.type === 'stdio') {
-        await this.connectStdio();
-      } else if (this.config.type === 'http') {
-        await this.connectHttp();
-      }
+      await this.client.connect();
+      const initResult = await this.client.initialize();
+      
+      this.capabilities = Object.keys(initResult.capabilities);
       this.status = 'connected';
       this.lastError = undefined;
+      
+      console.log(`Connected to MCP server ${this.config.name}:`, initResult.serverInfo);
     } catch (error) {
       this.status = 'error';
       this.lastError = error instanceof Error ? error.message : 'Unknown error';
@@ -221,6 +241,9 @@ class MCPServerConnection {
   }
 
   async disconnect(): Promise<void> {
+    if (this.client) {
+      await this.client.disconnect();
+    }
     this.status = 'disconnected';
     this.capabilities = [];
     this.lastError = undefined;
@@ -241,154 +264,53 @@ class MCPServerConnection {
     };
   }
 
-  private async connectStdio(): Promise<void> {
-    // For now, simulate stdio connection
-    // In a real implementation, this would spawn a child process
-    // and communicate via JSON-RPC over stdin/stdout
-    console.log(`Connecting to stdio MCP server: ${this.config.command} ${this.config.args?.join(' ')}`);
-    
-    // Simulate connection delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock capabilities for demonstration
-    this.capabilities = ['tools', 'resources', 'prompts'];
-  }
-
-  private async connectHttp(): Promise<void> {
-    if (!this.config.url) {
-      throw new Error('HTTP server requires URL');
-    }
-
-    console.log(`Connecting to HTTP MCP server: ${this.config.url}`);
-    
-    // In a real implementation, this would make HTTP requests to establish connection
-    // and discover capabilities
-    try {
-      const response = await fetch(`${this.config.url}/capabilities`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      const capabilities = await response.json();
-      this.capabilities = capabilities.capabilities || [];
-    } catch (error) {
-      // Fall back to mock capabilities for demonstration
-      this.capabilities = ['tools', 'resources'];
-    }
-  }
 
   async listTools(): Promise<MCPTool[]> {
-    if (this.status !== 'connected') {
+    if (this.status !== 'connected' || !this.client) {
       throw new Error('Server not connected');
     }
 
-    // Mock tools for demonstration
-    return [
-      {
-        name: 'read_file',
-        description: 'Read a file from the filesystem',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            path: { type: 'string', description: 'Path to the file' }
-          },
-          required: ['path']
-        }
-      },
-      {
-        name: 'write_file',
-        description: 'Write content to a file',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            path: { type: 'string', description: 'Path to the file' },
-            content: { type: 'string', description: 'Content to write' }
-          },
-          required: ['path', 'content']
-        }
-      }
-    ];
+    return await this.client.listTools();
   }
 
   async callTool(toolName: string, arguments_: any): Promise<any> {
-    if (this.status !== 'connected') {
+    if (this.status !== 'connected' || !this.client) {
       throw new Error('Server not connected');
     }
 
-    console.log(`Calling tool ${toolName} with arguments:`, arguments_);
-    
-    // Mock tool execution for demonstration
-    return {
-      result: `Mock result for ${toolName}`,
-      success: true
-    };
+    return await this.client.callTool(toolName, arguments_);
   }
 
   async listResources(): Promise<MCPResource[]> {
-    if (this.status !== 'connected') {
+    if (this.status !== 'connected' || !this.client) {
       throw new Error('Server not connected');
     }
 
-    // Mock resources for demonstration
-    return [
-      {
-        uri: 'file:///tmp/example.txt',
-        name: 'example.txt',
-        description: 'Example text file',
-        mimeType: 'text/plain'
-      }
-    ];
+    return await this.client.listResources();
   }
 
   async getResource(uri: string): Promise<any> {
-    if (this.status !== 'connected') {
+    if (this.status !== 'connected' || !this.client) {
       throw new Error('Server not connected');
     }
 
-    console.log(`Getting resource: ${uri}`);
-    
-    // Mock resource content for demonstration
-    return {
-      uri,
-      content: 'Mock resource content',
-      mimeType: 'text/plain'
-    };
+    return await this.client.readResource(uri);
   }
 
   async listPrompts(): Promise<MCPPrompt[]> {
-    if (this.status !== 'connected') {
+    if (this.status !== 'connected' || !this.client) {
       throw new Error('Server not connected');
     }
 
-    // Mock prompts for demonstration
-    return [
-      {
-        name: 'code_review',
-        description: 'Review code for best practices',
-        arguments: [
-          { name: 'language', description: 'Programming language' },
-          { name: 'code', description: 'Code to review' }
-        ]
-      }
-    ];
+    return await this.client.listPrompts();
   }
 
   async getPrompt(promptName: string, arguments_?: any): Promise<any> {
-    if (this.status !== 'connected') {
+    if (this.status !== 'connected' || !this.client) {
       throw new Error('Server not connected');
     }
 
-    console.log(`Getting prompt ${promptName} with arguments:`, arguments_);
-    
-    // Mock prompt content for demonstration
-    return {
-      name: promptName,
-      messages: [
-        {
-          role: 'user',
-          content: `Please review this ${arguments_?.language || 'code'}: ${arguments_?.code || 'example code'}`
-        }
-      ]
-    };
+    return await this.client.getPrompt(promptName, arguments_);
   }
 }
 

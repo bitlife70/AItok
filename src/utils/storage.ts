@@ -96,4 +96,30 @@ export class Storage {
     }
     return conversation.title;
   }
+
+  // Generic storage methods
+  static getItem(key: string): string | null {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.error(`Failed to get item ${key}:`, error);
+      return null;
+    }
+  }
+
+  static setItem(key: string, value: string): void {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.error(`Failed to set item ${key}:`, error);
+    }
+  }
+
+  static removeItem(key: string): void {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error(`Failed to remove item ${key}:`, error);
+    }
+  }
 }

@@ -70,7 +70,7 @@ export default function Header() {
   };
 
   return (
-    <div className="header bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+    <div className="header">
       <div className="flex items-center gap-4">
         <button
           onClick={toggleSidebar}
@@ -84,26 +84,40 @@ export default function Header() {
 
       <div className="flex items-center gap-3">
         {/* API Status */}
-        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700" title={getApiStatusText()}>
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-sm border transition-all duration-300 ${
+          apiStatus === 'connected' 
+            ? 'bg-emerald-50/80 dark:bg-emerald-900/20 border-emerald-200/50 dark:border-emerald-800/50' 
+            : apiStatus === 'error'
+            ? 'bg-rose-50/80 dark:bg-rose-900/20 border-rose-200/50 dark:border-rose-800/50'
+            : 'bg-amber-50/80 dark:bg-amber-900/20 border-amber-200/50 dark:border-amber-800/50'
+        }`} title={getApiStatusText()}>
           {getApiStatusIcon()}
-          <span className="text-xs text-gray-600 dark:text-gray-300">{getApiStatusText()}</span>
+          <span className={`text-xs font-medium ${
+            apiStatus === 'connected'
+              ? 'text-emerald-700 dark:text-emerald-400'
+              : apiStatus === 'error'
+              ? 'text-rose-700 dark:text-rose-400'
+              : 'text-amber-700 dark:text-amber-400'
+          }`}>
+            {apiStatus === 'connected' ? 'Ready' : apiStatus === 'error' ? 'Setup Required' : 'Checking...'}
+          </span>
         </div>
 
         {/* Agent Panel Toggle */}
         <button
           onClick={toggleAgentPanel}
-          className={`btn-secondary ${agentPanelOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : ''}`}
+          className={`btn-secondary min-w-[80px] h-9 ${agentPanelOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : ''}`}
           title={agentPanelOpen ? 'Hide Agent Panel' : 'Show Agent Panel'}
         >
-          <CpuChipIcon className="w-3 h-3" />
-          <span className="text-xs">Agent</span>
+          <CpuChipIcon className="w-4 h-4 flex-shrink-0" />
+          <span className="text-sm font-medium">Agent</span>
         </button>
 
         {/* Model Selector */}
         <Menu as="div" className="relative">
-          <Menu.Button className="btn-secondary">
-            <span className="text-xs">{selectedModel?.name || 'Select Model'}</span>
-            <ChevronDownIcon className="w-3 h-3" />
+          <Menu.Button className="btn-secondary min-w-[120px] h-9">
+            <span className="text-sm font-medium truncate">{selectedModel?.name || 'Select Model'}</span>
+            <ChevronDownIcon className="w-4 h-4 flex-shrink-0" />
           </Menu.Button>
           
           <Transition
@@ -115,7 +129,7 @@ export default function Header() {
             leaveFrom="transform opacity-100 scale-100"
             leaveTo="transform opacity-0 scale-95"
           >
-            <Menu.Items className="absolute right-0 z-10 mt-2 w-72 origin-top-right bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none rounded-lg border dark:border-gray-700">
+            <Menu.Items className="absolute right-0 z-[9999] mt-2 w-72 origin-top-right bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-gray-700/30 focus:outline-none rounded-2xl">
               <div className="p-2">
                 {availableModels.map(model => (
                   <Menu.Item key={model.id}>
@@ -140,11 +154,12 @@ export default function Header() {
 
         {/* Theme Selector */}
         <Menu as="div" className="relative">
-          <Menu.Button className="btn-secondary">
-            {theme === 'light' && <SunIcon className="w-3 h-3" />}
-            {theme === 'dark' && <MoonIcon className="w-3 h-3" />}
-            {theme === 'system' && <ComputerDesktopIcon className="w-3 h-3" />}
-            <ChevronDownIcon className="w-3 h-3" />
+          <Menu.Button className="btn-secondary min-w-[80px] h-9">
+            {theme === 'light' && <SunIcon className="w-4 h-4 flex-shrink-0" />}
+            {theme === 'dark' && <MoonIcon className="w-4 h-4 flex-shrink-0" />}
+            {theme === 'system' && <ComputerDesktopIcon className="w-4 h-4 flex-shrink-0" />}
+            <span className="text-sm font-medium capitalize">{theme}</span>
+            <ChevronDownIcon className="w-4 h-4 flex-shrink-0" />
           </Menu.Button>
           
           <Transition
@@ -156,7 +171,7 @@ export default function Header() {
             leaveFrom="transform opacity-100 scale-100"
             leaveTo="transform opacity-0 scale-95"
           >
-            <Menu.Items className="absolute right-0 z-10 mt-2 w-32 origin-top-right bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none rounded-lg border dark:border-gray-700">
+            <Menu.Items className="absolute right-0 z-[9999] mt-2 w-32 origin-top-right bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-gray-700/30 focus:outline-none rounded-2xl">
               <div className="p-1">
                 <Menu.Item>
                   {({ active }) => (
@@ -207,9 +222,10 @@ export default function Header() {
 
         {/* Language Selector */}
         <Menu as="div" className="relative">
-          <Menu.Button className="btn-secondary">
-            <GlobeAltIcon className="w-3 h-3" />
-            <span className="text-xs">{currentLanguage.toUpperCase()}</span>
+          <Menu.Button className="btn-secondary min-w-[100px] h-9">
+            <GlobeAltIcon className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm font-medium">{currentLanguage === 'en' ? 'English' : '한국어'}</span>
+            <ChevronDownIcon className="w-4 h-4 flex-shrink-0" />
           </Menu.Button>
           
           <Transition
@@ -221,7 +237,7 @@ export default function Header() {
             leaveFrom="transform opacity-100 scale-100"
             leaveTo="transform opacity-0 scale-95"
           >
-            <Menu.Items className="absolute right-0 z-10 mt-2 w-32 origin-top-right bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none rounded-lg border dark:border-gray-700">
+            <Menu.Items className="absolute right-0 z-[9999] mt-2 w-40 origin-top-right bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-gray-700/30 focus:outline-none rounded-2xl">
               <div className="p-1">
                 <Menu.Item>
                   {({ active }) => (

@@ -1,31 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   PaperAirplaneIcon
 } from '@heroicons/react/24/outline';
-import { useStore } from '../store/useStore';
+import { useMemoizedSelectors } from '../hooks/useMemoizedSelectors';
 import { useChat } from '../hooks/useChat';
+import { useScrollToBottom } from '../hooks/useScrollToBottom';
 import { UploadedFile } from '../types';
 import FileUpload from './FileUpload';
+import MarkdownMessage from './MarkdownMessage';
 
-export default function ChatInterface() {
+const ChatInterface = React.memo(() => {
   const { t } = useTranslation();
-  const { messages, isLoading, selectedModel } = useStore();
+  const { chatSelectors } = useMemoizedSelectors();
+  const { messages, isLoading, selectedModel } = chatSelectors;
   const { sendMessage, streamingMessage, isStreaming } = useChat();
   const [inputValue, setInputValue] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<UploadedFile[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { ref: messagesEndRef } = useScrollToBottom([messages, streamingMessage]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, streamingMessage]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!inputValue.trim() && selectedFiles.length === 0) || isLoading || isStreaming) return;
 
@@ -40,33 +35,84 @@ export default function ChatInterface() {
     }
 
     await sendMessage(messageContent, messageFiles);
-  };
+  }, [inputValue, selectedFiles, isLoading, isStreaming, sendMessage]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
-  };
+  }, [handleSubmit]);
 
   return (
-    <div className="main-content flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+    <div className="main-content flex flex-col h-full bg-transparent">
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4">
         {messages.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center h-full">
-            <div className="text-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                Welcome to AI Talk
-              </h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
-                Start a conversation with your AI assistant
+          <div className="flex-1 flex items-center justify-center h-full p-8">
+            <div className="text-center max-w-2xl mx-auto">
+              {/* 메인 아이콘 */}
+              <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+
+              {/* 메인 타이틀 */}
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4">
+                AI Talk
+              </h1>
+              <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+                Your intelligent conversation partner
               </p>
-              {selectedModel && (
-                <div className="text-sm text-gray-400 dark:text-gray-500">
-                  Using {selectedModel.name}
+
+              {/* 기능 소개 카드들 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-gray-700/20 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Smart Responses</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Get intelligent, contextual answers to your questions</p>
                 </div>
-              )}
+
+                <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-gray-700/20 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Multiple Models</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Choose from various AI models for different needs</p>
+                </div>
+
+                <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-gray-700/20 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Secure & Private</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Your conversations are private and secure</p>
+                </div>
+              </div>
+
+              {/* 시작 버튼과 모델 정보 */}
+              <div className="space-y-4">
+                {selectedModel && (
+                  <div className="inline-flex items-center gap-2 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20 dark:border-gray-700/20">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Ready with {selectedModel.name}
+                    </span>
+                  </div>
+                )}
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  💡 Start typing your message below to begin the conversation
+                </div>
+              </div>
             </div>
           </div>
         ) : (
@@ -87,7 +133,11 @@ export default function ChatInterface() {
                       ))}
                     </div>
                   )}
-                  {message.content}
+                  {message.role === 'assistant' ? (
+                    <MarkdownMessage content={message.content} />
+                  ) : (
+                    <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                  )}
                 </div>
               </div>
             ))}
@@ -100,7 +150,10 @@ export default function ChatInterface() {
                 </div>
                 <div className="message-bubble message-bubble-assistant">
                   {isStreaming && streamingMessage ? (
-                    <span>{streamingMessage}<span className="inline-block w-2 h-4 bg-gray-400 dark:bg-gray-500 ml-1 animate-pulse">|</span></span>
+                    <div className="relative">
+                      <MarkdownMessage content={streamingMessage} />
+                      <span className="inline-block w-2 h-4 bg-gray-400 dark:bg-gray-500 ml-1 animate-pulse">|</span>
+                    </div>
                   ) : (
                     <div className="loading-dots">
                       <div className="loading-dot"></div>
@@ -117,9 +170,9 @@ export default function ChatInterface() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+      <div className="border-t border-white/20 dark:border-gray-700/30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-6">
         <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="flex items-end gap-2">
+          <form onSubmit={handleSubmit} className="flex items-end gap-4">
             <FileUpload
               onFilesSelected={setSelectedFiles}
               maxFiles={5}
@@ -165,4 +218,8 @@ export default function ChatInterface() {
       </div>
     </div>
   );
-}
+});
+
+ChatInterface.displayName = 'ChatInterface';
+
+export default ChatInterface;
