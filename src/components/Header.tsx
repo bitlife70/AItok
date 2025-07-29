@@ -82,9 +82,9 @@ export default function Header() {
         <h1 className="text-gray-900 dark:text-white">AI Talk</h1>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 overflow-hidden">
         {/* API Status */}
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-sm border transition-all duration-300 ${
+        <div className={`flex items-center gap-2 px-2 py-1 rounded-full backdrop-blur-sm border transition-all duration-300 flex-shrink-0 ${
           apiStatus === 'connected' 
             ? 'bg-emerald-50/80 dark:bg-emerald-900/20 border-emerald-200/50 dark:border-emerald-800/50' 
             : apiStatus === 'error'
@@ -92,32 +92,32 @@ export default function Header() {
             : 'bg-amber-50/80 dark:bg-amber-900/20 border-amber-200/50 dark:border-amber-800/50'
         }`} title={getApiStatusText()}>
           {getApiStatusIcon()}
-          <span className={`text-xs font-medium ${
+          <span className={`text-xs font-medium hidden sm:inline ${
             apiStatus === 'connected'
               ? 'text-emerald-700 dark:text-emerald-400'
               : apiStatus === 'error'
               ? 'text-rose-700 dark:text-rose-400'
               : 'text-amber-700 dark:text-amber-400'
           }`}>
-            {apiStatus === 'connected' ? 'Ready' : apiStatus === 'error' ? 'Setup Required' : 'Checking...'}
+            {apiStatus === 'connected' ? 'Ready' : apiStatus === 'error' ? 'Setup' : 'Check...'}
           </span>
         </div>
 
         {/* Agent Panel Toggle */}
         <button
           onClick={toggleAgentPanel}
-          className={`btn-secondary min-w-[80px] h-9 ${agentPanelOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : ''}`}
+          className={`btn-secondary min-w-[60px] h-8 px-2 py-1 flex-shrink-0 ${agentPanelOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : ''}`}
           title={agentPanelOpen ? 'Hide Agent Panel' : 'Show Agent Panel'}
         >
           <CpuChipIcon className="w-4 h-4 flex-shrink-0" />
-          <span className="text-sm font-medium">Agent</span>
+          <span className="text-xs font-medium hidden md:inline">Agent</span>
         </button>
 
         {/* Model Selector */}
-        <Menu as="div" className="relative">
-          <Menu.Button className="btn-secondary min-w-[120px] h-9">
-            <span className="text-sm font-medium truncate">{selectedModel?.name || 'Select Model'}</span>
-            <ChevronDownIcon className="w-4 h-4 flex-shrink-0" />
+        <Menu as="div" className="relative flex-shrink-0">
+          <Menu.Button className="btn-secondary min-w-[80px] max-w-[140px] h-8 px-2 py-1">
+            <span className="text-xs font-medium truncate">{selectedModel?.name || 'Model'}</span>
+            <ChevronDownIcon className="w-3 h-3 flex-shrink-0" />
           </Menu.Button>
           
           <Transition
@@ -153,13 +153,13 @@ export default function Header() {
         </Menu>
 
         {/* Theme Selector */}
-        <Menu as="div" className="relative">
-          <Menu.Button className="btn-secondary min-w-[80px] h-9">
+        <Menu as="div" className="relative flex-shrink-0">
+          <Menu.Button className="btn-secondary min-w-[32px] max-w-[80px] h-8 px-2 py-1">
             {theme === 'light' && <SunIcon className="w-4 h-4 flex-shrink-0" />}
             {theme === 'dark' && <MoonIcon className="w-4 h-4 flex-shrink-0" />}
             {theme === 'system' && <ComputerDesktopIcon className="w-4 h-4 flex-shrink-0" />}
-            <span className="text-sm font-medium capitalize">{theme}</span>
-            <ChevronDownIcon className="w-4 h-4 flex-shrink-0" />
+            <span className="text-xs font-medium capitalize hidden lg:inline truncate">{theme}</span>
+            <ChevronDownIcon className="w-3 h-3 flex-shrink-0 hidden sm:inline" />
           </Menu.Button>
           
           <Transition
@@ -221,11 +221,11 @@ export default function Header() {
         </Menu>
 
         {/* Language Selector */}
-        <Menu as="div" className="relative">
-          <Menu.Button className="btn-secondary min-w-[100px] h-9">
+        <Menu as="div" className="relative flex-shrink-0">
+          <Menu.Button className="btn-secondary min-w-[32px] max-w-[100px] h-8 px-2 py-1">
             <GlobeAltIcon className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm font-medium">{currentLanguage === 'en' ? 'English' : '한국어'}</span>
-            <ChevronDownIcon className="w-4 h-4 flex-shrink-0" />
+            <span className="text-xs font-medium hidden lg:inline truncate">{currentLanguage === 'en' ? 'EN' : 'KO'}</span>
+            <ChevronDownIcon className="w-3 h-3 flex-shrink-0 hidden sm:inline" />
           </Menu.Button>
           
           <Transition

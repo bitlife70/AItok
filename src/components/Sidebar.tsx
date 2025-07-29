@@ -30,22 +30,22 @@ export default function Sidebar() {
   return (
     <div className="sidebar flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-900 dark:text-white text-base">AI Talk</h2>
+          <h2 className="font-semibold text-gray-900 dark:text-white text-base truncate">AI Talk</h2>
           <button
             onClick={toggleSidebar}
-            className="btn-ghost text-gray-600 dark:text-gray-300"
+            className="btn-ghost text-gray-600 dark:text-gray-300 flex-shrink-0"
           >
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
         
         {/* Tab Navigation */}
-        <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mb-4">
+        <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mb-4 overflow-hidden">
           <button
             onClick={() => setActiveTab('conversations')}
-            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs rounded transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs rounded transition-colors min-w-0 ${
               activeTab === 'conversations'
                 ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -56,7 +56,7 @@ export default function Sidebar() {
           </button>
           <button
             onClick={() => setActiveTab('mcp')}
-            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs rounded transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs rounded transition-colors min-w-0 ${
               activeTab === 'mcp'
                 ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -67,7 +67,7 @@ export default function Sidebar() {
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs rounded transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs rounded transition-colors min-w-0 ${
               activeTab === 'settings'
                 ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -79,13 +79,15 @@ export default function Sidebar() {
         </div>
 
         {activeTab === 'conversations' && (
-          <button 
-            onClick={createNewConversation}
-            className="btn-primary w-full flex items-center justify-center gap-2"
-          >
-            <PlusIcon className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm font-medium">{t('sidebar.newChat')}</span>
-          </button>
+          <div className="overflow-hidden">
+            <button 
+              onClick={createNewConversation}
+              className="btn-primary w-full flex items-center justify-center gap-2 max-w-full"
+            >
+              <PlusIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm font-medium truncate">{t('sidebar.newChat')}</span>
+            </button>
+          </div>
         )}
       </div>
 

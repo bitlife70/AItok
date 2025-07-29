@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { Message, Conversation, LLMModel, AgentProcess, MCPServer, Language } from '../types';
 import { Storage } from '../utils/storage';
 
+// Debounced save utility
+let saveTimeout: NodeJS.Timeout | null = null;
+let isSaving = false;
+
 export type Theme = 'light' | 'dark' | 'system';
 
 interface AppState {
@@ -64,6 +68,7 @@ interface AppState {
   // Persistence actions
   loadConversations: () => void;
   saveConversations: () => void;
+  debouncedSaveConversations: () => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -129,8 +134,8 @@ export const useStore = create<AppState>((set, get) => ({
       conv.id === updatedConversation?.id ? updatedConversation : conv
     );
     
-    // Auto-save conversations
-    setTimeout(() => get().saveConversations(), 100);
+    // Use debounced save to prevent race conditions
+    get().debouncedSaveConversations();
     
     return {
       messages: updatedMessages,
@@ -209,5 +214,33 @@ export const useStore = create<AppState>((set, get) => ({
   saveConversations: () => {
     const { conversations } = get();
     Storage.saveConversations(conversations);
+  },
+
+  debouncedSaveConversations: () => {
+    // Clear any existing timeout to prevent multiple saves
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+    
+    // Don't queue another save if one is already in progress
+    if (isSaving) {
+      return;
+    }
+    
+    // Set a new timeout for debounced save
+    saveTimeout = setTimeout(async () => {
+      if (isSaving) return; // Double-check to prevent race condition
+      
+      isSaving = true;
+      try {
+        const { conversations } = get();
+        Storage.saveConversations(conversations);
+      } catch (error) {
+        console.error('Error saving conversations:', error);
+      } finally {
+        isSaving = false;
+        saveTimeout = null;
+      }
+    }, 500); // 500ms debounce delay
   }
 }));

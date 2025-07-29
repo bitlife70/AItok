@@ -201,7 +201,6 @@ class MCPServerConnection {
   private config: MCPServerConfig;
   private status: 'connected' | 'disconnected' | 'error' = 'disconnected';
   private capabilities: string[] = [];
-  private lastError?: string;
   private client: MCPClient | null = null;
 
   constructor(config: MCPServerConfig) {
@@ -230,12 +229,10 @@ class MCPServerConnection {
       
       this.capabilities = Object.keys(initResult.capabilities);
       this.status = 'connected';
-      this.lastError = undefined;
       
       console.log(`Connected to MCP server ${this.config.name}:`, initResult.serverInfo);
     } catch (error) {
       this.status = 'error';
-      this.lastError = error instanceof Error ? error.message : 'Unknown error';
       throw error;
     }
   }
@@ -246,7 +243,6 @@ class MCPServerConnection {
     }
     this.status = 'disconnected';
     this.capabilities = [];
-    this.lastError = undefined;
   }
 
   setStatus(status: 'connected' | 'disconnected' | 'error') {

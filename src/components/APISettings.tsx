@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { 
   KeyIcon,
   CheckCircleIcon,
@@ -67,7 +66,6 @@ interface ConnectionStatus {
 }
 
 export default function APISettings() {
-  const { t } = useTranslation();
   const { setApiKeyConfigured } = useStore();
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});

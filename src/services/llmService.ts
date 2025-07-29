@@ -40,6 +40,21 @@ class LLMService {
   }
 
   async sendMessage(request: LLMRequest): Promise<LLMResponse> {
+    // Validate request
+    if (!request || !request.model || !request.messages || request.messages.length === 0) {
+      throw new Error('Invalid request: model and messages are required');
+    }
+
+    // Validate messages format
+    for (const message of request.messages) {
+      if (!message.role || !message.content) {
+        throw new Error('Invalid message format: role and content are required');
+      }
+      if (!['user', 'assistant', 'system'].includes(message.role)) {
+        throw new Error(`Invalid message role: ${message.role}`);
+      }
+    }
+
     const provider = this.getProviderFromModel(request.model);
     
     // Check if provider is actually available with API key
@@ -48,21 +63,46 @@ class LLMService {
       return this.sendMockMessage(request);
     }
     
-    switch (provider) {
-      case 'openai':
-        return this.sendOpenAIMessage(request);
-      case 'anthropic':
-        return this.sendAnthropicMessage(request);
-      case 'google':
-        return this.sendGoogleMessage(request);
-      case 'local':
-        return this.sendOllamaMessage(request);
-      default:
+    try {
+      switch (provider) {
+        case 'openai':
+          return await this.sendOpenAIMessage(request);
+        case 'anthropic':
+          return await this.sendAnthropicMessage(request);
+        case 'google':
+          return await this.sendGoogleMessage(request);
+        case 'local':
+          return await this.sendOllamaMessage(request);
+        default:
+          return await this.sendMockMessage(request);
+      }
+    } catch (error) {
+      console.error(`Error sending message to ${provider}:`, error);
+      // If there's an error with the real provider, fall back to mock
+      if (provider !== 'mock') {
+        console.warn(`Falling back to mock response due to ${provider} error`);
         return this.sendMockMessage(request);
+      }
+      throw error;
     }
   }
 
   async *streamMessage(request: LLMRequest): AsyncGenerator<LLMStreamChunk> {
+    // Validate request
+    if (!request || !request.model || !request.messages || request.messages.length === 0) {
+      throw new Error('Invalid request: model and messages are required');
+    }
+
+    // Validate messages format
+    for (const message of request.messages) {
+      if (!message.role || !message.content) {
+        throw new Error('Invalid message format: role and content are required');
+      }
+      if (!['user', 'assistant', 'system'].includes(message.role)) {
+        throw new Error(`Invalid message role: ${message.role}`);
+      }
+    }
+
     const provider = this.getProviderFromModel(request.model);
     
     // Check if provider is actually available with API key
@@ -72,30 +112,79 @@ class LLMService {
       return;
     }
     
-    switch (provider) {
-      case 'openai':
-        yield* this.streamOpenAIMessage(request);
-        break;
-      case 'anthropic':
-        yield* this.streamAnthropicMessage(request);
-        break;
-      case 'google':
-        yield* this.streamGoogleMessage(request);
-        break;
-      case 'local':
-        yield* this.streamOllamaMessage(request);
-        break;
-      default:
+    try {
+      switch (provider) {
+        case 'openai':
+          yield* this.streamOpenAIMessage(request);
+          break;
+        case 'anthropic':
+          yield* this.streamAnthropicMessage(request);
+          break;
+        case 'google':
+          yield* this.streamGoogleMessage(request);
+          break;
+        case 'local':
+          yield* this.streamOllamaMessage(request);
+          break;
+        default:
+          yield* this.streamMockMessage(request);
+          break;
+      }
+    } catch (error) {
+      console.error(`Error streaming message from ${provider}:`, error);
+      // If there's an error with the real provider, fall back to mock
+      if (provider !== 'mock') {
+        console.warn(`Falling back to mock streaming due to ${provider} error`);
         yield* this.streamMockMessage(request);
-        break;
+      } else {
+        throw error;
+      }
     }
   }
 
   private getProviderFromModel(model: string): string {
-    if (model.startsWith('gpt-') || model.includes('gpt') || model.startsWith('o1-')) return 'openai';
-    if (model.startsWith('claude-') || model.includes('claude')) return 'anthropic';
-    if (model.startsWith('gemini') || model.includes('gemini')) return 'google';
-    if (model.startsWith('llama') || model.startsWith('mistral') || model.startsWith('qwen')) return 'local';
+    const modelLower = model.toLowerCase();
+    
+    // OpenAI models
+    if (modelLower.startsWith('gpt-') || 
+        modelLower.startsWith('o1-') ||
+        modelLower.includes('chatgpt') ||
+        modelLower.startsWith('text-davinci') ||
+        modelLower.startsWith('text-curie') ||
+        modelLower.startsWith('text-babbage') ||
+        modelLower.startsWith('text-ada')) {
+      return 'openai';
+    }
+    
+    // Anthropic models
+    if (modelLower.startsWith('claude-') || 
+        modelLower.includes('claude') ||
+        modelLower.startsWith('anthropic')) {
+      return 'anthropic';
+    }
+    
+    // Google models
+    if (modelLower.startsWith('gemini') || 
+        modelLower.includes('gemini') ||
+        modelLower.startsWith('palm') ||
+        modelLower.includes('bard')) {
+      return 'google';
+    }
+    
+    // Local/Ollama models
+    if (modelLower.startsWith('llama') || 
+        modelLower.startsWith('mistral') || 
+        modelLower.startsWith('qwen') ||
+        modelLower.startsWith('phi') ||
+        modelLower.startsWith('codellama') ||
+        modelLower.startsWith('vicuna') ||
+        modelLower.startsWith('alpaca') ||
+        modelLower.includes('ollama')) {
+      return 'local';
+    }
+    
+    // Default to mock for unknown models
+    console.warn(`Unknown model provider for: ${model}, falling back to mock`);
     return 'mock';
   }
 
@@ -278,10 +367,26 @@ class LLMService {
     const contents = [];
     
     for (const message of messages) {
-      // Google Gemini format doesn't use role field in contents array
-      // Instead, it alternates between user and model responses
+      // Google Gemini requires role to alternate between 'user' and 'model'
+      // Convert 'assistant' role to 'model' for Google API
+      const role = message.role === 'assistant' ? 'model' : message.role;
+      
+      // Skip system messages as Google Gemini doesn't support them directly
+      if (message.role === 'system') {
+        continue;
+      }
+      
       contents.push({
+        role: role,
         parts: [{ text: message.content }]
+      });
+    }
+    
+    // Ensure the conversation starts with a user message for Google Gemini
+    if (contents.length > 0 && contents[0].role !== 'user') {
+      contents.unshift({
+        role: 'user',
+        parts: [{ text: 'Hello' }]
       });
     }
     

@@ -24,58 +24,136 @@ export default function FileUpload({
   const { t } = useTranslation();
   const [selectedFiles, setSelectedFiles] = useState<UploadedFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (files: FileList) => {
+    // Validate input
+    if (!files || files.length === 0) {
+      setErrorMessage('No files selected');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+
     const validFiles: UploadedFile[] = [];
+    setErrorMessage(''); // Clear previous errors
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
-      // Check file size
+      // Validate file object
+      if (!file || !(file instanceof File)) {
+        console.warn('Invalid file object detected, skipping');
+        continue;
+      }
+
+      // Check file name
+      if (!file.name || file.name.trim() === '') {
+        setErrorMessage('Invalid file: missing file name');
+        setTimeout(() => setErrorMessage(''), 5000);
+        continue;
+      }
+
+      // Check file size (including zero-byte files)
+      if (file.size === 0) {
+        setErrorMessage(`File "${file.name}" is empty`);
+        setTimeout(() => setErrorMessage(''), 5000);
+        continue;
+      }
+
       if (file.size > maxSizePerFile * 1024 * 1024) {
-        alert(t('fileUpload.fileTooLarge', { fileName: file.name, maxSize: maxSizePerFile }));
+        setErrorMessage(t('fileUpload.fileTooLarge', { fileName: file.name, maxSize: maxSizePerFile }));
+        setTimeout(() => setErrorMessage(''), 5000);
         continue;
       }
 
       // Check file count
       if (validFiles.length + selectedFiles.length >= maxFiles) {
-        alert(t('fileUpload.tooManyFiles', { maxFiles }));
+        setErrorMessage(t('fileUpload.tooManyFiles', { maxFiles }));
+        setTimeout(() => setErrorMessage(''), 5000);
         break;
+      }
+
+      // Check for duplicate files
+      const isDuplicate = selectedFiles.some(existing => 
+        existing.name === file.name && existing.size === file.size
+      );
+      if (isDuplicate) {
+        setErrorMessage(`File "${file.name}" is already uploaded`);
+        setTimeout(() => setErrorMessage(''), 5000);
+        continue;
       }
 
       try {
         const uploadedFile: UploadedFile = {
           id: crypto.randomUUID(),
           name: file.name,
-          type: file.type,
+          type: file.type || 'application/octet-stream', // Fallback type
           size: file.size,
           url: URL.createObjectURL(file)
         };
 
         // Read text content for text files
-        if (file.type.startsWith('text/') || file.name.endsWith('.md')) {
-          const content = await readFileAsText(file);
-          uploadedFile.content = content;
+        if (file.type.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.txt')) {
+          try {
+            const content = await readFileAsText(file);
+            uploadedFile.content = content;
+          } catch (textError) {
+            console.warn('Failed to read text content:', textError);
+            // Continue without content for non-critical text reading errors
+          }
         }
 
         validFiles.push(uploadedFile);
       } catch (error) {
         console.error('Error processing file:', error);
-        alert(t('fileUpload.fileError', { fileName: file.name }));
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        setErrorMessage(`${t('fileUpload.fileError', { fileName: file.name })}: ${errorMsg}`);
+        setTimeout(() => setErrorMessage(''), 5000);
       }
     }
 
-    const newFiles = [...selectedFiles, ...validFiles];
-    setSelectedFiles(newFiles);
-    onFilesSelected(newFiles);
+    if (validFiles.length > 0) {
+      const newFiles = [...selectedFiles, ...validFiles];
+      setSelectedFiles(newFiles);
+      onFilesSelected(newFiles);
+    }
   };
 
   const readFileAsText = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
+      // Validate file
+      if (!file || !(file instanceof File)) {
+        reject(new Error('Invalid file object'));
+        return;
+      }
+
+      // Check if file is actually a text file
+      if (!file.type.startsWith('text/') && !file.name.endsWith('.md') && !file.name.endsWith('.txt')) {
+        reject(new Error('File is not a text file'));
+        return;
+      }
+
       const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.onerror = reject;
+      
+      reader.onload = (e) => {
+        const result = e.target?.result;
+        if (typeof result === 'string') {
+          // Validate content length (limit to 1MB of text)
+          if (result.length > 1024 * 1024) {
+            reject(new Error('Text file content is too large (max 1MB)'));
+            return;
+          }
+          resolve(result);
+        } else {
+          reject(new Error('Failed to read file as text'));
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error(`Failed to read file: ${file.name}`));
+      };
+      
       reader.readAsText(file);
     });
   };
@@ -157,6 +235,13 @@ export default function FileUpload({
               {t('fileUpload.dropFiles')}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {errorMessage && (
+        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600">{errorMessage}</p>
         </div>
       )}
 

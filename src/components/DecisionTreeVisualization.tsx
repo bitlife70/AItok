@@ -60,7 +60,7 @@ export default function DecisionTreeVisualization({
     const treeNodes = treeLayout(root);
 
     // Add links
-    const links = g.selectAll('.link')
+    g.selectAll('.link')
       .data(treeNodes.links())
       .enter()
       .append('path')
@@ -86,7 +86,7 @@ export default function DecisionTreeVisualization({
       .attr('class', 'node')
       .attr('transform', d => `translate(${d.x},${d.y})`)
       .style('cursor', 'pointer')
-      .on('click', (event, d) => {
+      .on('click', (_, d) => {
         setSelectedNode(d.data);
       });
 
@@ -126,7 +126,7 @@ export default function DecisionTreeVisualization({
       });
 
     // Add confidence indicators for decisions
-    nodes.filter(d => d.data.type === 'decision' && d.data.confidence)
+    nodes.filter(d => d.data.type === 'decision' && d.data.confidence !== undefined)
       .append('text')
       .attr('dy', '1.5em')
       .attr('x', 0)
@@ -153,9 +153,10 @@ export default function DecisionTreeVisualization({
         return 10;
       })
       .on('end', function() {
-        d3.select(this).call(function(selection) {
-          selection.node()?.parentNode?.dispatchEvent(new Event('rerun'));
-        });
+        const element = d3.select(this).node() as Element;
+        if (element && element.parentNode) {
+          element.parentNode.dispatchEvent(new Event('rerun'));
+        }
       });
 
   }, [processes, width, height]);

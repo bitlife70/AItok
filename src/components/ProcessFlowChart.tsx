@@ -120,10 +120,10 @@ export default function ProcessFlowChart({
         })
         .on('end', (event, d) => {
           if (!event.active) newSimulation.alphaTarget(0);
-          d.fx = null;
-          d.fy = null;
+          d.fx = undefined;
+          d.fy = undefined;
         }))
-      .on('click', (event, d) => {
+      .on('click', (_, d) => {
         setSelectedNode(d);
       });
 
@@ -187,16 +187,16 @@ export default function ProcessFlowChart({
     // Update positions on simulation tick
     newSimulation.on('tick', () => {
       link
-        .attr('x1', d => (d.source as FlowNode).x)
-        .attr('y1', d => (d.source as FlowNode).y)
-        .attr('x2', d => (d.target as FlowNode).x)
-        .attr('y2', d => (d.target as FlowNode).y);
+        .attr('x1', d => (d.source as unknown as FlowNode).x)
+        .attr('y1', d => (d.source as unknown as FlowNode).y)
+        .attr('x2', d => (d.target as unknown as FlowNode).x)
+        .attr('y2', d => (d.target as unknown as FlowNode).y);
 
       node.attr('transform', d => `translate(${d.x},${d.y})`);
 
       edgeLabels
-        .attr('x', d => ((d.source as FlowNode).x + (d.target as FlowNode).x) / 2)
-        .attr('y', d => ((d.source as FlowNode).y + (d.target as FlowNode).y) / 2);
+        .attr('x', d => ((d.source as unknown as FlowNode).x + (d.target as unknown as FlowNode).x) / 2)
+        .attr('y', d => ((d.source as unknown as FlowNode).y + (d.target as unknown as FlowNode).y) / 2);
     });
 
     return () => {
@@ -222,7 +222,7 @@ export default function ProcessFlowChart({
     }
 
     // Convert processes to nodes
-    processes.forEach((process, index) => {
+    processes.forEach((process) => {
       nodes.push({
         id: process.id,
         type: process.decision ? 'decision' : 'process',

@@ -199,7 +199,7 @@ export class MCPToolExecutor {
 
   private trackToolExecution(
     request: ToolExecutionRequest,
-    context?: ToolExecutionContext,
+    context: ToolExecutionContext | undefined,
     status: 'started' | 'completed' | 'error',
     result?: ToolExecutionResult
   ): void {
@@ -252,7 +252,7 @@ export class MCPToolExecutor {
   }
 
   abortAllExecutions(): void {
-    for (const [id, controller] of this.activeExecutions) {
+    for (const [, controller] of this.activeExecutions) {
       controller.abort();
     }
     this.activeExecutions.clear();

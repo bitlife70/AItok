@@ -53,13 +53,13 @@ function App() {
         <Header />
         
         <div className="flex-1 flex overflow-hidden">
-          <div className="w-80 flex-shrink-0">
+          <div className="w-80 max-w-80 flex-shrink-0 min-w-0">
             <Sidebar />
           </div>
           <div className="flex-1 min-w-0">
             <ChatInterface />
           </div>
-          <div className="w-96 flex-shrink-0">
+          <div className="w-96 max-w-96 flex-shrink-0 min-w-0">
             <AgentPanel />
           </div>
         </div>

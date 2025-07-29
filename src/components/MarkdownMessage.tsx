@@ -67,8 +67,9 @@ const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content, className = 
           ),
           
           // 코드
-          code: ({ inline, className, children, ...props }) => {
-            if (inline) {
+          code: ({ className, children, ...props }) => {
+            const isInline = !className || !className.startsWith('language-');
+            if (isInline) {
               return (
                 <code 
                   className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono text-pink-600 dark:text-pink-400 border"

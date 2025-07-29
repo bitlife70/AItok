@@ -27,10 +27,20 @@ export function useMessageHandler() {
     };
   }, [selectedModel]);
 
-  const createErrorMessage = useCallback((error: Error | string): Message => {
+  const createErrorMessage = useCallback((error: Error | string | unknown): Message => {
+    let errorMessage: string;
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    } else {
+      errorMessage = String(error) || 'An unknown error occurred';
+    }
+    
     return {
       id: (Date.now() + 1).toString(),
-      content: `Error: ${error instanceof Error ? error.message : error}`,
+      content: `Error: ${errorMessage}`,
       role: 'assistant',
       timestamp: new Date(),
       model: selectedModel?.id || ''
@@ -71,11 +81,29 @@ export function useMessageHandler() {
       throw new Error('No model selected');
     }
 
+    if (!userMessage || !userMessage.content) {
+      throw new Error('Invalid user message: content is required');
+    }
+
+    const llmMessages = prepareLLMMessages(userMessage);
+    
+    // Validate prepared messages
+    if (!llmMessages || llmMessages.length === 0) {
+      throw new Error('Failed to prepare messages for LLM request');
+    }
+
+    // Ensure all messages have required fields
+    for (const msg of llmMessages) {
+      if (!msg.role || !msg.content) {
+        throw new Error('Invalid message format in LLM request');
+      }
+    }
+
     return {
-      messages: prepareLLMMessages(userMessage),
+      messages: llmMessages,
       model: selectedModel.id,
-      temperature: 0.7,
-      maxTokens: 1000,
+      temperature: Math.max(0, Math.min(2, 0.7)), // Clamp temperature between 0 and 2
+      maxTokens: Math.max(1, Math.min(4096, 1000)), // Clamp maxTokens between 1 and 4096
       stream: true
     };
   }, [selectedModel, prepareLLMMessages]);
